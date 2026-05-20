@@ -1,96 +1,3 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DOU JAM CONTROL</title>
-
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;600;900&display=swap" rel="stylesheet">
-
-<style>
-body{
-margin:0;
-background:#0a0a0a;
-color:white;
-font-family:Montserrat;
-display:flex;
-justify-content:center;
-align-items:center;
-height:100vh;
-}
-
-.panel{
-width:420px;
-background:#111;
-border:1px solid #ff7a00;
-border-radius:20px;
-padding:20px;
-box-shadow:0 0 40px rgba(255,122,0,.2);
-}
-
-h1{
-text-align:center;
-color:#ff7a00;
-}
-
-input,select{
-width:100%;
-padding:10px;
-margin:6px 0;
-border-radius:10px;
-background:#1a1a1a;
-color:white;
-border:1px solid #333;
-}
-
-.row{display:flex;gap:10px;}
-
-button{
-width:100%;
-padding:14px;
-margin-top:10px;
-border:none;
-border-radius:10px;
-font-weight:900;
-cursor:pointer;
-}
-
-.start{background:linear-gradient(135deg,#ff7a00,#ff3d00);}
-.pause{background:#333;}
-.reset{background:#111;border:1px solid #ff7a00;color:#ff7a00;}
-.close{background:#222;border:1px solid #00ff99;color:#00ff99;}
-</style>
-</head>
-
-<body>
-
-<div class="panel">
-<h1>DOU CONTROL</h1>
-
-<input id="title" placeholder="Sayaç adı">
-
-<select id="mode">
-<option value="duration">Süre</option>
-<option value="clock">Saat'e kadar</option>
-</select>
-
-<div class="row">
-<input id="h" placeholder="H">
-<input id="m" placeholder="M">
-<input id="s" placeholder="S">
-</div>
-
-<input id="target" placeholder="Hedef Saat (14:30)">
-
-<button class="start" onclick="start()">BAŞLAT</button>
-<button class="pause" onclick="pause()">DURAKLAT</button>
-<button class="reset" onclick="reset()">SIFIRLA</button>
-<button class="close" onclick="closeScreen()">SÜRE BİTTİ KAPAT</button>
-</div>
-
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
-
 <script>
 const firebaseConfig = {
 apiKey:"AIzaSyBEXfWs0B3qG5gjswJtvQbgminrBU4XzuE",
@@ -103,18 +10,17 @@ firebase.initializeApp(firebaseConfig);
 const ref = firebase.database().ref("timerState");
 
 function start(){
-const h = +h.value||0;
-const m = +m.value||0;
-const s = +s.value||0;
+
+const h = Number(document.getElementById("h").value || 0);
+const m = Number(document.getElementById("m").value || 0);
+const s = Number(document.getElementById("s").value || 0);
+
+const timeLeft = h*3600 + m*60 + s;
 
 ref.set({
-title:title.value,
-mode:mode.value,
-hours:h,
-minutes:m,
-seconds:s,
-targetTime:target.value,
-timeLeft:h*3600+m*60+s,
+title:document.getElementById("title").value || "DOU JAM",
+mode:document.getElementById("mode").value,
+timeLeft:timeLeft,
 running:true,
 finished:false
 });
@@ -133,10 +39,7 @@ finished:false
 });
 }
 
-function closeScreen(){
+function closeFinish(){
 ref.update({finished:false});
 }
 </script>
-
-</body>
-</html>
