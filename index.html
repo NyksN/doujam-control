@@ -2,16 +2,19 @@
 <html lang="tr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>DOU JAM Admin Paneli</title>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <style>
-    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color:#333;}
-    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    /* Sağa sola kaymayı engellemek için overflow-x: hidden eklendi */
+    * { box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 15px; color:#333; overflow-x: hidden; }
+    
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; width: 100%; }
     h2 { margin-top: 0; font-size: 18px; color: #ff7a00; border-bottom: 2px solid #eee; padding-bottom: 10px;}
     label { font-weight: bold; font-size: 14px; display: block; margin-top: 15px; margin-bottom: 5px; }
-    input[type="text"], input[type="number"], input[type="time"], select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+    input[type="text"], input[type="number"], input[type="time"], select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; }
     
     .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
     .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 20px;}
@@ -25,18 +28,18 @@
     .btn-close-finish { background: #6f42c1; }
     .btn-message { background: #17a2b8; margin-top:0;}
     
-    .live-preview { text-align: center; background: #222; color: #ff7a00; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+    .live-preview { text-align: center; background: #222; color: #ff7a00; padding: 20px; border-radius: 12px; margin-bottom: 20px; width: 100%; }
     .live-time { font-size: 40px; font-weight: bold; font-family: monospace; }
     .status-badge { display: inline-block; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
     .status-running { background: rgba(40, 167, 69, 0.2); color: #28a745; }
     .status-paused { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
 
+    /* Telefondan girildiğinde her şey dikey dizilecek */
     @media (max-width: 600px) {
-        body { padding: 10px; }
-        .grid-3 { grid-template-columns: 1fr; gap: 5px; }
-        .grid-2 { grid-template-columns: 1fr; gap: 5px; }
+        .grid-3 { grid-template-columns: 1fr; gap: 5px; } /* 3'lü sütun iptal, tek sütun oldu */
+        .grid-2 { grid-template-columns: 1fr; gap: 5px; } /* 2'li sütun iptal, tek sütun oldu */
         .card { padding: 15px; }
-        .live-time { font-size: 32px; }
+        .live-time { font-size: 36px; }
     }
 </style>
 </head>
@@ -107,7 +110,6 @@ const ref = db.ref("timerState");
 
 let currentState = { running: false, endTime: 0, pausedLeft: 0 };
 
-// Sunucu saat farkı senkronizasyonu (Kritik Düzeltme)
 let serverOffset = 0;
 db.ref(".info/serverTimeOffset").on("value", (snap) => {
     serverOffset = snap.val() || 0;
@@ -119,17 +121,9 @@ function getServerTime() {
 
 function toggleMode() {
     const mode = document.getElementById("mode").value;
-    if(mode === 'duration') {
-        document.getElementById("duration-inputs").style.display = window.innerWidth <= 600 ? "block" : "grid";
-        if(window.innerWidth <= 600) document.getElementById("duration-inputs").classList.add("grid-3");
-    } else {
-        document.getElementById("duration-inputs").style.display = "none";
-    }
+    document.getElementById("duration-inputs").style.display = mode === 'duration' ? 'grid' : 'none';
     document.getElementById("clock-inputs").style.display = mode === 'clock' ? 'block' : 'none';
 }
-
-window.addEventListener('load', toggleMode);
-window.addEventListener('resize', toggleMode);
 
 function startTimer() {
     const title = document.getElementById("title").value || "DOU JAM";
@@ -205,8 +199,9 @@ function sendMessage(show) {
     });
 }
 
+// BUG BURADA ÇÖZÜLDÜ: running durumu da false'a çekildi.
 function closeFinish() {
-    ref.update({ finished: false, pausedLeft: 0, endTime: 0 });
+    ref.update({ running: false, finished: false, pausedLeft: 0, endTime: 0 });
 }
 
 const previewTimer = document.getElementById("preview-timer");
