@@ -1,45 +1,234 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOU JAM Admin Paneli</title>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+<style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background: #f0f2f5; margin: 0; padding: 20px; color:#333;}
+    .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 20px; }
+    h2 { margin-top: 0; font-size: 18px; color: #ff7a00; border-bottom: 2px solid #eee; padding-bottom: 10px;}
+    label { font-weight: bold; font-size: 14px; display: block; margin-top: 15px; margin-bottom: 5px; }
+    input[type="text"], input[type="number"], input[type="time"], select { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+    button { width: 100%; padding: 15px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; color: white; margin-top: 10px; }
+    .btn-start { background: #28a745; }
+    .btn-pause { background: #ffc107; color: black; }
+    .btn-reset { background: #dc3545; }
+    .btn-close-finish { background: #6f42c1; }
+    .btn-message { background: #17a2b8; }
+    
+    .live-preview { text-align: center; background: #222; color: #ff7a00; padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+    .live-time { font-size: 40px; font-weight: bold; font-family: monospace; }
+    .status-badge { display: inline-block; padding: 5px 10px; border-radius: 20px; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
+    .status-running { background: rgba(40, 167, 69, 0.2); color: #28a745; }
+    .status-paused { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
+</style>
+</head>
+<body>
+
+<div class="live-preview">
+    <div id="status-badge" class="status-badge">BEKLENİYOR</div>
+    <div class="live-time" id="preview-timer">00:00:00</div>
+    <div id="preview-title" style="color:white; margin-top:5px;">DOU JAM</div>
+</div>
+
+<div class="card">
+    <h2>SAYAÇ KURULUMU</h2>
+    <label>Başlık</label>
+    <input type="text" id="title" value="DOU JAM" placeholder="Örn: Oyun Geliştirme Süreci">
+    
+    <label>Mod Seçimi</label>
+    <select id="mode" onchange="toggleMode()">
+        <option value="duration">Süre Ver (Saat:Dakika:Saniye)</option>
+        <option value="clock">Saate Kadar Say (Örn: 18:30)</option>
+    </select>
+
+    <div id="duration-inputs" class="grid-3">
+        <div><label>Saat</label><input type="number" id="h" value="0" min="0"></div>
+        <div><label>Dakika</label><input type="number" id="m" value="0" min="0"></div>
+        <div><label>Saniye</label><input type="number" id="s" value="0" min="0"></div>
+    </div>
+
+    <div id="clock-inputs" style="display:none;">
+        <label>Hedef Saat</label>
+        <input type="time" id="target-time">
+    </div>
+
+    <div class="grid-3" style="grid-template-columns: 1fr 1fr; margin-top:20px;">
+        <button class="btn-start" onclick="startTimer()">BAŞLAT / DEVAM ET</button>
+        <button class="btn-pause" onclick="pauseTimer()">DURAKLAT</button>
+    </div>
+    <button class="btn-reset" onclick="resetTimer()">SIFIRLA / DURDUR</button>
+</div>
+
+<div class="card">
+    <h2>ETKİNLİK DUYURUSU (MARQUEE)</h2>
+    <label>Alt Kayan Yazı Mesajı</label>
+    <input type="text" id="message" placeholder="Örn: Yemek arası başlamıştır...">
+    
+    <div class="grid-3" style="grid-template-columns: 1fr 1fr;">
+        <button class="btn-message" onclick="sendMessage(true)">GÖSTER & GÜNCELLE</button>
+        <button class="btn-reset" onclick="sendMessage(false)">GİZLE</button>
+    </div>
+</div>
+
+<div class="card">
+    <h2>BİTİŞ EKRANI KONTROLÜ</h2>
+    <button class="btn-close-finish" onclick="closeFinish()">"SÜRE BİTTİ" EKRANINI KAPAT</button>
+</div>
+
 <script>
+// FIREBASE CONFIG BURAYA GELECEK
 const firebaseConfig = {
-apiKey:"AIzaSyBEXfWs0B3qG5gjswJtvQbgminrBU4XzuE",
-authDomain:"doujam-ed005.firebaseapp.com",
-databaseURL:"https://doujam-ed005-default-rtdb.firebaseio.com",
-projectId:"doujam-ed005"
+    apiKey:"AIzaSyBEXfWs0B3qG5gjswJtvQbgminrBU4XzuE",
+    authDomain:"doujam-ed005.firebaseapp.com",
+    databaseURL:"https://doujam-ed005-default-rtdb.firebaseio.com",
+    projectId:"doujam-ed005"
 };
-
 firebase.initializeApp(firebaseConfig);
-const ref = firebase.database().ref("timerState");
+const db = firebase.database();
+const ref = db.ref("timerState");
 
-function start(){
+let currentState = { running: false, endTime: 0, pausedLeft: 0 };
 
-const h = Number(document.getElementById("h").value || 0);
-const m = Number(document.getElementById("m").value || 0);
-const s = Number(document.getElementById("s").value || 0);
+function toggleMode() {
+    const mode = document.getElementById("mode").value;
+    document.getElementById("duration-inputs").style.display = mode === 'duration' ? 'grid' : 'none';
+    document.getElementById("clock-inputs").style.display = mode === 'clock' ? 'block' : 'none';
+}
 
-const timeLeft = h*3600 + m*60 + s;
+function startTimer() {
+    const title = document.getElementById("title").value || "DOU JAM";
+    let targetMs = 0;
+    
+    // Eğer hali hazırda duraklatılmış bir state varsa, kaldığı yerden devam ettir (Resume)
+    if (!currentState.running && currentState.pausedLeft > 0) {
+        ref.update({
+            title: title,
+            endTime: Date.now() + currentState.pausedLeft,
+            pausedLeft: 0,
+            running: true,
+            finished: false
+        });
+        return;
+    }
 
-ref.set({
-title:document.getElementById("title").value || "DOU JAM",
-mode:document.getElementById("mode").value,
-timeLeft:timeLeft,
-running:true,
-finished:false
+    // Yeni sayaç başlatma mantığı
+    const mode = document.getElementById("mode").value;
+    
+    if(mode === 'duration') {
+        const h = Number(document.getElementById("h").value || 0);
+        const m = Number(document.getElementById("m").value || 0);
+        const s = Number(document.getElementById("s").value || 0);
+        targetMs = (h * 3600 + m * 60 + s) * 1000;
+    } else {
+        const timeVal = document.getElementById("target-time").value;
+        if(!timeVal) { alert("Lütfen saat seçin!"); return; }
+        const [hours, minutes] = timeVal.split(':');
+        let targetDate = new Date();
+        targetDate.setHours(hours, minutes, 0, 0);
+        // Eğer seçilen saat geçmişteyse, yarına kurar
+        if(targetDate.getTime() <= Date.now()) {
+            targetDate.setDate(targetDate.getDate() + 1); 
+        }
+        targetMs = targetDate.getTime() - Date.now();
+    }
+
+    if(targetMs <= 0) return;
+
+    ref.update({
+        title: title,
+        endTime: Date.now() + targetMs,
+        totalDuration: targetMs,
+        pausedLeft: 0,
+        running: true,
+        finished: false
+    });
+}
+
+function pauseTimer() {
+    if(!currentState.running) return;
+    const timeLeft = Math.max(0, currentState.endTime - Date.now());
+    ref.update({
+        running: false,
+        pausedLeft: timeLeft
+    });
+}
+
+function resetTimer() {
+    ref.update({
+        title: "DOU JAM",
+        endTime: 0,
+        totalDuration: 0,
+        pausedLeft: 0,
+        running: false,
+        finished: false
+    });
+}
+
+function sendMessage(show) {
+    const msg = document.getElementById("message").value;
+    ref.update({
+        message: msg,
+        showMarquee: show
+    });
+}
+
+function closeFinish() {
+    ref.update({ finished: false, pausedLeft: 0, endTime: 0 });
+}
+
+// Canlı Önizleme (Live Preview) için Admin tarafındaki Loop
+const previewTimer = document.getElementById("preview-timer");
+const previewTitle = document.getElementById("preview-title");
+const statusBadge = document.getElementById("status-badge");
+
+ref.on("value", (snap) => {
+    if(snap.val()) {
+        currentState = snap.val();
+        previewTitle.innerText = currentState.title;
+        
+        if(currentState.finished) {
+            statusBadge.className = "status-badge";
+            statusBadge.style.backgroundColor = "red";
+            statusBadge.style.color = "white";
+            statusBadge.innerText = "SÜRE BİTTİ";
+        } else if(currentState.running) {
+            statusBadge.className = "status-badge status-running";
+            statusBadge.innerText = "AKTİF / ÇALIŞIYOR";
+        } else if(currentState.pausedLeft > 0) {
+            statusBadge.className = "status-badge status-paused";
+            statusBadge.innerText = "DURAKLATILDI";
+        } else {
+            statusBadge.className = "status-badge";
+            statusBadge.style.backgroundColor = "#ccc";
+            statusBadge.style.color = "black";
+            statusBadge.innerText = "BEKLENİYOR";
+        }
+    }
 });
-}
 
-function pause(){
-ref.update({running:false});
-}
+function adminLoop() {
+    let timeLeftMs = 0;
+    if(currentState.running) {
+        timeLeftMs = currentState.endTime - Date.now();
+    } else {
+        timeLeftMs = currentState.pausedLeft;
+    }
+    if(timeLeftMs < 0) timeLeftMs = 0;
 
-function reset(){
-ref.set({
-title:"DOU JAM",
-timeLeft:0,
-running:false,
-finished:false
-});
+    let totalSec = Math.floor(timeLeftMs / 1000);
+    let h = Math.floor(totalSec / 3600);
+    let m = Math.floor((totalSec % 3600) / 60);
+    let s = totalSec % 60;
+    previewTimer.innerText = String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")+":"+String(s).padStart(2,"0");
+    
+    requestAnimationFrame(adminLoop);
 }
-
-function closeFinish(){
-ref.update({finished:false});
-}
+requestAnimationFrame(adminLoop);
 </script>
+</body>
+</html>
