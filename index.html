@@ -31,7 +31,6 @@
     .status-running { background: rgba(40, 167, 69, 0.2); color: #28a745; }
     .status-paused { background: rgba(255, 193, 7, 0.2); color: #ffc107; }
 
-    /* Mobil Cihazlar İçin Tam Uyum */
     @media (max-width: 600px) {
         body { padding: 10px; }
         .grid-3 { grid-template-columns: 1fr; gap: 5px; }
@@ -108,9 +107,18 @@ const ref = db.ref("timerState");
 
 let currentState = { running: false, endTime: 0, pausedLeft: 0 };
 
+// Sunucu saat farkı senkronizasyonu (Kritik Düzeltme)
+let serverOffset = 0;
+db.ref(".info/serverTimeOffset").on("value", (snap) => {
+    serverOffset = snap.val() || 0;
+});
+
+function getServerTime() {
+    return Date.now() + serverOffset;
+}
+
 function toggleMode() {
     const mode = document.getElementById("mode").value;
-    // Telefonda düzgün dizilsin diye "grid" değilse "block" mantığı kullanıyoruz.
     if(mode === 'duration') {
         document.getElementById("duration-inputs").style.display = window.innerWidth <= 600 ? "block" : "grid";
         if(window.innerWidth <= 600) document.getElementById("duration-inputs").classList.add("grid-3");
@@ -120,7 +128,6 @@ function toggleMode() {
     document.getElementById("clock-inputs").style.display = mode === 'clock' ? 'block' : 'none';
 }
 
-// Sayfa yüklendiğinde mod görünümünü ayarla
 window.addEventListener('load', toggleMode);
 window.addEventListener('resize', toggleMode);
 
@@ -131,7 +138,7 @@ function startTimer() {
     if (!currentState.running && currentState.pausedLeft > 0) {
         ref.update({
             title: title,
-            endTime: Date.now() + currentState.pausedLeft,
+            endTime: getServerTime() + currentState.pausedLeft,
             pausedLeft: 0,
             running: true,
             finished: false
@@ -150,19 +157,19 @@ function startTimer() {
         const timeVal = document.getElementById("target-time").value;
         if(!timeVal) { alert("Lütfen saat seçin!"); return; }
         const [hours, minutes] = timeVal.split(':');
-        let targetDate = new Date();
+        let targetDate = new Date(getServerTime());
         targetDate.setHours(hours, minutes, 0, 0);
-        if(targetDate.getTime() <= Date.now()) {
+        if(targetDate.getTime() <= getServerTime()) {
             targetDate.setDate(targetDate.getDate() + 1); 
         }
-        targetMs = targetDate.getTime() - Date.now();
+        targetMs = targetDate.getTime() - getServerTime();
     }
 
     if(targetMs <= 0) return;
 
     ref.update({
         title: title,
-        endTime: Date.now() + targetMs,
+        endTime: getServerTime() + targetMs,
         totalDuration: targetMs,
         pausedLeft: 0,
         running: true,
@@ -172,7 +179,7 @@ function startTimer() {
 
 function pauseTimer() {
     if(!currentState.running) return;
-    const timeLeft = Math.max(0, currentState.endTime - Date.now());
+    const timeLeft = Math.max(0, currentState.endTime - getServerTime());
     ref.update({
         running: false,
         pausedLeft: timeLeft
@@ -234,7 +241,7 @@ ref.on("value", (snap) => {
 function adminLoop() {
     let timeLeftMs = 0;
     if(currentState.running) {
-        timeLeftMs = currentState.endTime - Date.now();
+        timeLeftMs = currentState.endTime - getServerTime();
     } else {
         timeLeftMs = currentState.pausedLeft;
     }
