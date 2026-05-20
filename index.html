@@ -12,7 +12,7 @@ body{
 margin:0;
 background:#0a0a0a;
 color:white;
-font-family:'Montserrat',sans-serif;
+font-family:Montserrat;
 display:flex;
 justify-content:center;
 align-items:center;
@@ -20,7 +20,7 @@ height:100vh;
 }
 
 .panel{
-width:400px;
+width:420px;
 background:#111;
 border:1px solid #ff7a00;
 border-radius:20px;
@@ -31,109 +31,63 @@ box-shadow:0 0 40px rgba(255,122,0,.2);
 h1{
 text-align:center;
 color:#ff7a00;
-letter-spacing:4px;
-margin-bottom:20px;
 }
 
 input,select{
 width:100%;
-padding:12px;
-margin:8px 0;
-border:none;
+padding:10px;
+margin:6px 0;
 border-radius:10px;
 background:#1a1a1a;
 color:white;
-outline:none;
 border:1px solid #333;
 }
 
-label{
-font-size:12px;
-opacity:.7;
-}
-
-.row{
-display:flex;
-gap:10px;
-}
-
-.row input{
-flex:1;
-}
+.row{display:flex;gap:10px;}
 
 button{
 width:100%;
-padding:15px;
+padding:14px;
 margin-top:10px;
 border:none;
-border-radius:12px;
+border-radius:10px;
 font-weight:900;
 cursor:pointer;
-transition:.2s;
 }
 
-.start{
-background:linear-gradient(135deg,#ff7a00,#ff3d00);
-color:white;
-}
-
-.pause{
-background:#333;
-}
-
-.reset{
-background:#111;
-border:1px solid #ff7a00;
-color:#ff7a00;
-}
-
-button:hover{
-transform:scale(1.03);
-box-shadow:0 0 20px rgba(255,122,0,.4);
-}
-
-.glow{
-animation:pulse 1.5s infinite;
-}
-
-@keyframes pulse{
-0%{box-shadow:0 0 10px rgba(255,122,0,.2);}
-50%{box-shadow:0 0 30px rgba(255,122,0,.6);}
-100%{box-shadow:0 0 10px rgba(255,122,0,.2);}
-}
+.start{background:linear-gradient(135deg,#ff7a00,#ff3d00);}
+.pause{background:#333;}
+.reset{background:#111;border:1px solid #ff7a00;color:#ff7a00;}
+.close{background:#222;border:1px solid #00ff99;color:#00ff99;}
 </style>
 </head>
 
 <body>
 
-<div class="panel glow">
-<h1>DOU JAM CONTROL</h1>
+<div class="panel">
+<h1>DOU CONTROL</h1>
 
-<label>Sayaç Adı</label>
-<input id="title">
+<input id="title" placeholder="Sayaç adı">
 
-<label>Mod</label>
 <select id="mode">
 <option value="duration">Süre</option>
 <option value="clock">Saat'e kadar</option>
 </select>
 
-<label>Süre (saat / dk / sn)</label>
 <div class="row">
 <input id="h" placeholder="H">
 <input id="m" placeholder="M">
 <input id="s" placeholder="S">
 </div>
 
-<label>Hedef Saat (14:30)</label>
-<input id="target">
+<input id="target" placeholder="Hedef Saat (14:30)">
 
 <button class="start" onclick="start()">BAŞLAT</button>
 <button class="pause" onclick="pause()">DURAKLAT</button>
 <button class="reset" onclick="reset()">SIFIRLA</button>
+<button class="close" onclick="closeScreen()">SÜRE BİTTİ KAPAT</button>
 </div>
 
-<!-- FIREBASE -->
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 
@@ -146,18 +100,23 @@ projectId:"doujam-ed005"
 };
 
 firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
-const ref = db.ref("timerState");
+const ref = firebase.database().ref("timerState");
 
 function start(){
+const h = +h.value||0;
+const m = +m.value||0;
+const s = +s.value||0;
+
 ref.set({
-title:document.getElementById("title").value,
-mode:document.getElementById("mode").value,
-hours:+document.getElementById("h").value||0,
-minutes:+document.getElementById("m").value||0,
-seconds:+document.getElementById("s").value||0,
-targetTime:document.getElementById("target").value,
-running:true
+title:title.value,
+mode:mode.value,
+hours:h,
+minutes:m,
+seconds:s,
+targetTime:target.value,
+timeLeft:h*3600+m*60+s,
+running:true,
+finished:false
 });
 }
 
@@ -169,8 +128,13 @@ function reset(){
 ref.set({
 title:"DOU JAM",
 timeLeft:0,
-running:false
+running:false,
+finished:false
 });
+}
+
+function closeScreen(){
+ref.update({finished:false});
 }
 </script>
 
